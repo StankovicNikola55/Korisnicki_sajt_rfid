@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RFID Firma Prijava</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBixHfZ1NG0WD1j_66D-nwzB32MwUGNQ7Y",
+      authDomain: "rfid-perionica.firebaseapp.com",
+      databaseURL: "https://rfid-perionica-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "rfid-perionica",
+      storageBucket: "rfid-perionica.appspot.com",
+      messagingSenderId: "1066783472631",
+      appId: "1:1066783472631:web:8daa38af163a5f15850cf2"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    window.login = async function login() {
+      const inputName = document.getElementById("name").value.trim();
+      const inputPass = document.getElementById("password").value.trim();
+      const resultEl = document.getElementById("result");
+      const cardListEl = document.getElementById("cardList");
+
+      resultEl.textContent = "";
+      cardListEl.innerHTML = "";
+      resultEl.className = "result";
+
+      if (!inputName || !inputPass) {
+        resultEl.textContent = "Unesite ime firme i lozinku.";
+        resultEl.classList.add("error");
+        return;
+      }
+
+      const dbRef = ref(db);
+      try {
+        const firmSnap = await get(child(dbRef, `firms/${inputName}`));
+        if (firmSnap.exists()) {
+          const firmData = firmSnap.val();
+          if (firmData.password === inputPass) {
+            resultEl.innerHTML = `✅ Firma <b>${inputName}</b> ima <b>${firmData.credits}</b> kredita.`;
+            resultEl.classList.add("success");
+
+            // Traži sve kartice koje pripadaju firmi
+            const cardsSnap = await get(child(dbRef, "cards"));
+            if (cardsSnap.exists()) {
+              let hasCards = false;
+              cardsSnap.forEach(cardSnap => {
+                const card = cardSnap.val();
+                if (card.firm === inputName) {
+                  cardListEl.innerHTML += `<li><b>${card.name}</b> (UID: ${cardSnap.key})</li>`;
+                  hasCards = true;
+                }
+              });
+              if (!hasCards) {
+                cardListEl.innerHTML = "<li>Ova firma još nema registrovanih kartica.</li>";
+              }
+            }
+          } else {
+            resultEl.textContent = "Pogrešna lozinka.";
+            resultEl.classList.add("error");
+          }
+        } else {
+          resultEl.textContent = "Firma nije pronađena.";
+          resultEl.classList.add("error");
+        }
+      } catch (error) {
+        console.error(error);
+        resultEl.textContent = "Greška pri pristupu bazi.";
+        resultEl.classList.add("error");
+      }
+    };
+  </script>
+  <style>
+    body {
+      background: linear-gradient(to right, #eef2f3, #8e9eab);
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      height: 100vh;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      padding: 30px 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      width: 360px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    .container:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+      transform: scale(1.02);
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    button {
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 100%;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #004a99;
+    }
+    .result {
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+    .error {
+      color: red;
+    }
+    .success {
+      color: green;
+    }
+    ul {
+      margin-top: 10px;
+      padding-left: 20px;
+      text-align: left;
+    }
+    li {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 style="margin-bottom: 20px; color: #333;">🏢 Firma – Pristup kreditima</h2>
+    <input type="text" id="name" placeholder="Ime firme" />
+    <input type="password" id="password" placeholder="Lozinka firme" />
+    <button onclick="login()">🔐 Prijavi se</button>
+    <div class="result" id="result"></div>
+    <ul id="cardList"></ul>
+  </div>
+</body>
+</html>
