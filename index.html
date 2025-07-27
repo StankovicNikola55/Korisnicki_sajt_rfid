@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Kontrola žetona</title>
+<style>
+body {
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:linear-gradient(135deg,#fef6e4,#f3d2c1);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+.card {
+  background:#fff;
+  padding:20px;
+  border-radius:20px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.25);
+  text-align:center;
+  width:95%;
+  max-width:400px;
+}
+h1,h2 {margin-bottom:15px;color:#333;}
+input {
+  width:90%;
+  padding:12px;
+  margin:8px 0;
+  border-radius:10px;
+  border:2px solid #ccc;
+  font-size:1.1em;
+}
+button { cursor:pointer; }
+.counter {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin-bottom:10px;
+}
+.counter button {
+  background:#ff7f50;
+  border:none;
+  border-radius:50%;
+  width:70px;
+  height:70px;
+  font-size:2em;
+  color:#fff;
+  margin:0 10px;
+  transition:0.3s;
+}
+.counter button:hover {background:#ff6330;transform:scale(1.05);}
+.number {
+  font-size:3em;
+  font-weight:bold;
+  min-width:60px;
+}
+.manual-input {
+  margin:15px 0;
+}
+.send-btn {
+  width:100%;
+  background:#4caf50;
+  border:none;
+  border-radius:15px;
+  padding:15px;
+  font-size:1.4em;
+  color:#fff;
+  margin-top:10px;
+  transition:0.3s;
+}
+.send-btn:hover {background:#45a049;transform:scale(1.02);}
+.logout-btn {
+  width:100%;
+  background:#d9534f;
+  border:none;
+  border-radius:15px;
+  padding:12px;
+  font-size:1em;
+  color:#fff;
+  margin-top:15px;
+  transition:0.3s;
+}
+.logout-btn:hover {background:#c9302c;transform:scale(1.02);}
+.status {margin-top:15px;font-size:1em;color:#333;min-height:24px;}
+.hidden {display:none;}
+
+/* PIN UI */
+.pin-dots {
+  display:flex;
+  justify-content:center;
+  margin:15px 0;
+}
+.pin-dots div {
+  width:15px;height:15px;margin:0 8px;
+  border-radius:50%;
+  border:2px solid #333;
+}
+.pin-dots .filled {
+  background:#333;
+}
+.pin-pad {
+  display:grid;
+  grid-template-columns: repeat(3,1fr);
+  gap:10px;
+  margin-top:10px;
+}
+.pin-pad button {
+  background:#eee;
+  border:none;
+  font-size:1.5em;
+  padding:20px;
+  border-radius:15px;
+  transition:0.3s;
+}
+.pin-pad button:active {
+  background:#ccc;
+}
+</style>
+</head>
+<body>
+
+<div class="card" id="loginBox">
+  <h2>🔑 Prijava</h2>
+  <input type="text" id="firmaName" placeholder="Ime firme"><br>
+  <input type="text" id="userName" placeholder="Ime korisnika (sa kartice)"><br>
+  <h3>Unesi PIN firme</h3>
+  <div class="pin-dots">
+    <div id="dot1"></div>
+    <div id="dot2"></div>
+    <div id="dot3"></div>
+    <div id="dot4"></div>
+  </div>
+  <div class="pin-pad">
+    <button onclick="pressPin('1')">1</button>
+    <button onclick="pressPin('2')">2</button>
+    <button onclick="pressPin('3')">3</button>
+    <button onclick="pressPin('4')">4</button>
+    <button onclick="pressPin('5')">5</button>
+    <button onclick="pressPin('6')">6</button>
+    <button onclick="pressPin('7')">7</button>
+    <button onclick="pressPin('8')">8</button>
+    <button onclick="pressPin('9')">9</button>
+    <button onclick="clearPin()">⌫</button>
+    <button onclick="pressPin('0')">0</button>
+    <button onclick="submitPin()">OK</button>
+  </div>
+  <div class="status" id="loginStatus"></div>
+</div>
+
+<div class="card hidden" id="appBox">
+  <h1 id="welcomeText"></h1>
+  <div><strong>Krediti firme:</strong> <span id="creditsCount">0</span></div>
+  <div class="counter">
+    <button onclick="decrease()">-</button>
+    <div class="number" id="tokenCount">0</div>
+    <button onclick="increase()">+</button>
+  </div>
+  <div class="manual-input">
+    <input type="number" id="manualTokens" placeholder="Upiši broj žetona" oninput="manualChange()">
+  </div>
+  <button class="send-btn" onclick="sendTokens()">Pošalji žetone</button>
+  <button class="logout-btn" onclick="logout()">Odjavi se</button>
+  <div class="status" id="status"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBixHfZ1NG0WD1j_66D-nwzB32MwUGNQ7Y",
+  authDomain: "rfid-perionica.firebaseapp.com",
+  databaseURL: "https://rfid-perionica-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "rfid-perionica",
+  storageBucket: "rfid-perionica.appspot.com",
+  messagingSenderId: "000000000000",
+  appId: "1:000000000000:web:xxxxxxxxxxxxxx"
+};
+firebase.initializeApp(firebaseConfig);
+
+let currentFirma = null;
+let currentUserName = null;
+let currentUID = null;
+let currentCredits = 0;
+let tokens = 0;
+let pinInput = "";
+
+// 🔄 Proveri LocalStorage
+window.addEventListener('load', ()=>{
+  const savedFirma = localStorage.getItem("firma");
+  const savedUser = localStorage.getItem("userName");
+  const savedUID = localStorage.getItem("uid");
+  if(savedFirma && savedUser && savedUID){
+    currentFirma = savedFirma;
+    currentUserName = savedUser;
+    currentUID = savedUID;
+    document.getElementById("loginBox").classList.add("hidden");
+    document.getElementById("appBox").classList.remove("hidden");
+    document.getElementById("welcomeText").innerText = `👋 Zdravo, ${currentUserName} (firma: ${currentFirma})`;
+    firebase.database().ref("firms/"+currentFirma+"/credits").on('value', s=>{
+      if(s.exists()){
+        currentCredits = s.val();
+        document.getElementById("creditsCount").innerText = currentCredits;
+      }
+    });
+  }
+});
+
+// 📌 Funkcije za PIN UI
+function pressPin(num){
+  if(pinInput.length < 4){
+    pinInput += num;
+    updateDots();
+    if(pinInput.length === 4){
+      submitPin();
+    }
+  }
+}
+function clearPin(){
+  pinInput = pinInput.slice(0,-1);
+  updateDots();
+}
+function updateDots(){
+  for(let i=1;i<=4;i++){
+    document.getElementById('dot'+i).classList.remove('filled');
+  }
+  for(let i=1;i<=pinInput.length;i++){
+    document.getElementById('dot'+i).classList.add('filled');
+  }
+}
+function submitPin(){
+  if(pinInput.length<4)return;
+  login(pinInput);
+}
+function login(pinValue){
+  const firma = document.getElementById("firmaName").value.trim();
+  const userName = document.getElementById("userName").value.trim();
+  if(!firma || !pinValue || !userName){
+    document.getElementById("loginStatus").innerText = "⚠️ Popuni sva polja";
+    pinInput = ""; updateDots();
+    return;
+  }
+  firebase.database().ref("firms/"+firma+"/pin").get().then(snap=>{
+    if(snap.exists() && snap.val() === pinValue){
+      firebase.database().ref("cards").get().then(snap2=>{
+        if(snap2.exists()){
+          let cards = snap2.val();
+          let found = false;
+          for(let uid in cards){
+            if(cards[uid].firm === firma && cards[uid].name.toLowerCase() === userName.toLowerCase()){
+              found = true;
+              currentFirma = firma;
+              currentUserName = cards[uid].name;
+              currentUID = uid;
+              break;
+            }
+          }
+          if(found){
+            localStorage.setItem("firma", currentFirma);
+            localStorage.setItem("userName", currentUserName);
+            localStorage.setItem("uid", currentUID);
+            document.getElementById("loginBox").classList.add("hidden");
+            document.getElementById("appBox").classList.remove("hidden");
+            document.getElementById("welcomeText").innerText = `👋 Zdravo, ${currentUserName} (firma: ${currentFirma})`;
+            firebase.database().ref("firms/"+currentFirma+"/credits").on('value', s=>{
+              if(s.exists()){
+                currentCredits = s.val();
+                document.getElementById("creditsCount").innerText = currentCredits;
+              }
+            });
+          } else {
+            document.getElementById("loginStatus").innerText = "❌ Korisnik nije pronađen za ovu firmu!";
+          }
+        }
+      });
+    } else {
+      document.getElementById("loginStatus").innerText = "❌ Pogrešan PIN firme!";
+    }
+    pinInput = "";
+    updateDots();
+  });
+}
+
+function increase(){
+  tokens++;
+  document.getElementById("tokenCount").innerText = tokens;
+  document.getElementById("manualTokens").value = tokens;
+}
+function decrease(){
+  if(tokens>0){
+    tokens--;
+    document.getElementById("tokenCount").innerText = tokens;
+    document.getElementById("manualTokens").value = tokens;
+  }
+}
+function manualChange(){
+  let val = parseInt(document.getElementById("manualTokens").value);
+  if(!isNaN(val) && val >= 0){
+    tokens = val;
+    document.getElementById("tokenCount").innerText = tokens;
+  }
+}
+function sendTokens(){
+  if(!currentFirma || !currentUID){
+    document.getElementById("status").innerText = "⚠️ Nisi prijavljen!";
+    return;
+  }
+  if(tokens <= 0){
+    document.getElementById("status").innerText = "⚠️ Unesi barem 1 žeton";
+    return;
+  }
+  if(tokens > currentCredits){
+    document.getElementById("status").innerText = "⚠️ Nema dovoljno kredita!";
+    return;
+  }
+  const newCredits = currentCredits - tokens;
+  firebase.database().ref("firms/"+currentFirma+"/credits").set(newCredits).then(()=>{
+    firebase.database().ref("cards/"+currentUID+"/used").get().then(snap=>{
+      let used = 0;
+      if(snap.exists()) used = snap.val();
+      used += tokens;
+      firebase.database().ref("cards/"+currentUID+"/used").set(used).then(()=>{
+        firebase.database().ref("commands/"+currentFirma).set(tokens).then(()=>{
+          document.getElementById("status").innerText = `✅ Poslato ${tokens} žetona!`;
+          tokens = 0;
+          document.getElementById("tokenCount").innerText = tokens;
+          document.getElementById("manualTokens").value = "";
+        });
+      });
+    });
+  });
+}
+function logout(){
+  localStorage.removeItem("firma");
+  localStorage.removeItem("userName");
+  localStorage.removeItem("uid");
+  currentFirma = null;
+  currentUserName = null;
+  currentUID = null;
+  currentCredits = 0;
+  tokens = 0;
+  document.getElementById("tokenCount").innerText = "0";
+  document.getElementById("manualTokens").value = "";
+  document.getElementById("loginBox").classList.remove("hidden");
+  document.getElementById("appBox").classList.add("hidden");
+  document.getElementById("firmaName").value = "";
+  document.getElementById("userName").value = "";
+  document.getElementById("loginStatus").innerText = "";
+  document.getElementById("status").innerText = "";
+  pinInput="";updateDots();
+}
+</script>
+</body>
+</html>
