@@ -559,43 +559,9 @@ function animateButton(button) {
   }, 100);
 }
 
-// 🔄 LOCAL STORAGE CHECK
-window.addEventListener('load', ()=>{
-  const savedFirma = localStorage.getItem("firma");
-  const savedUser = localStorage.getItem("userName");
-  const savedUID = localStorage.getItem("uid");
-  if(savedFirma && savedUser && savedUID){
-    currentFirma = savedFirma;
-    currentUserName = savedUser;
-    currentUID = savedUID;
-    document.getElementById("loginBox").classList.add("hidden");
-    document.getElementById("appBox").classList.remove("hidden");
-    document.getElementById("welcomeText").innerText = `👋 Zdravo, ${currentUserName}`;
-    
-    // Play satisfying customer welcome sound with visual feedback
-    setTimeout(() => {
-      console.log('🔊 [localStorage] Attempting to play customer welcome sound...');
-      console.log('🔊 [localStorage] Available sounds:', Object.keys(sounds));
-      console.log('🔊 [localStorage] customerWelcome sound exists:', !!sounds.customerWelcome);
-      
-      if (sounds.customerWelcome) {
-        playSound('customerWelcome');
-        console.log('✅ [localStorage] Customer welcome sound played successfully');
-      } else {
-        console.log('❌ [localStorage] Customer welcome sound not available');
-      }
-      
-      // Add subtle glow effect to welcome text
-      const welcomeText = document.getElementById("welcomeText");
-      welcomeText.style.animation = "textGlow 1.5s ease-in-out";
-      setTimeout(() => {
-        welcomeText.style.animation = "";
-      }, 1500);
-    }, 200);
-    
-    loadUserData();
-  }
-});
+// 🔄 LOCAL STORAGE CHECK - REMOVED DUPLICATE
+// This was causing conflicts with checkExistingLogin() function
+// Login restoration is now handled only in checkExistingLogin()
 
 // 📊 LOAD USER DATA
 function loadUserData() {
@@ -1816,44 +1782,58 @@ function refreshAdminData() {
 
 // 🔄 CHECK EXISTING LOGIN
 function checkExistingLogin() {
-  const savedFirma = localStorage.getItem("firma");
-  const savedUserName = localStorage.getItem("userName");
-  const savedUID = localStorage.getItem("uid");
-  
-  if (savedFirma && savedUserName && savedUID) {
-    console.log("🔄 Restoring previous login:", savedFirma, savedUserName);
-    currentFirma = savedFirma;
-    currentUserName = savedUserName;
-    currentUID = savedUID;
+  try {
+    const savedFirma = localStorage.getItem("firma");
+    const savedUserName = localStorage.getItem("userName");
+    const savedUID = localStorage.getItem("uid");
     
-    // Show app box and load data
-    document.getElementById("loginBox").classList.add("hidden");
-    document.getElementById("appBox").classList.remove("hidden");
-    document.getElementById("welcomeText").innerText = `👋 Zdravo, ${currentUserName}`;
+    console.log("🔍 [checkExistingLogin] Checking localStorage:", { savedFirma, savedUserName, savedUID });
     
-    // Play satisfying customer welcome sound with visual feedback
-    setTimeout(() => {
-      console.log('🔊 [checkExistingLogin] Attempting to play customer welcome sound...');
-      console.log('🔊 [checkExistingLogin] Available sounds:', Object.keys(sounds));
-      console.log('🔊 [checkExistingLogin] customerWelcome sound exists:', !!sounds.customerWelcome);
+    if (savedFirma && savedUserName && savedUID) {
+      console.log("🔄 Restoring previous login:", savedFirma, savedUserName);
+      currentFirma = savedFirma;
+      currentUserName = savedUserName;
+      currentUID = savedUID;
       
-      if (sounds.customerWelcome) {
-        playSound('customerWelcome');
-        console.log('✅ [checkExistingLogin] Customer welcome sound played successfully');
-      } else {
-        console.log('❌ [checkExistingLogin] Customer welcome sound not available');
-      }
+      // Show app box and load data
+      document.getElementById("loginBox").classList.add("hidden");
+      document.getElementById("appBox").classList.remove("hidden");
+      document.getElementById("welcomeText").innerText = `👋 Zdravo, ${currentUserName}`;
       
-      // Add subtle glow effect to welcome text
-      const welcomeText = document.getElementById("welcomeText");
-      welcomeText.style.animation = "textGlow 1.5s ease-in-out";
+      // Play satisfying customer welcome sound with visual feedback
       setTimeout(() => {
-        welcomeText.style.animation = "";
-      }, 1500);
-    }, 200);
-    
-    // Load user data
-    loadUserData();
+        console.log('🔊 [checkExistingLogin] Attempting to play customer welcome sound...');
+        console.log('🔊 [checkExistingLogin] Available sounds:', Object.keys(sounds));
+        console.log('🔊 [checkExistingLogin] customerWelcome sound exists:', !!sounds.customerWelcome);
+        
+        if (sounds.customerWelcome) {
+          playSound('customerWelcome');
+          console.log('✅ [checkExistingLogin] Customer welcome sound played successfully');
+        } else {
+          console.log('❌ [checkExistingLogin] Customer welcome sound not available');
+        }
+        
+        // Add subtle glow effect to welcome text
+        const welcomeText = document.getElementById("welcomeText");
+        welcomeText.style.animation = "textGlow 1.5s ease-in-out";
+        setTimeout(() => {
+          welcomeText.style.animation = "";
+        }, 1500);
+      }, 200);
+      
+      // Load user data
+      loadUserData();
+      
+      console.log("✅ [checkExistingLogin] Login restored successfully");
+    } else {
+      console.log("ℹ️ [checkExistingLogin] No saved login found, showing login form");
+    }
+  } catch (error) {
+    console.error("❌ [checkExistingLogin] Error restoring login:", error);
+    // Clear corrupted localStorage data
+    localStorage.removeItem("firma");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("uid");
   }
 }
 
